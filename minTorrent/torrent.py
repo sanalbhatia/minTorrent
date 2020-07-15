@@ -1,4 +1,5 @@
 import bencodepy
+from hashlib import sha1
 from collections import namedtuple
 from typing import List, Dict, Tuple
 
@@ -9,9 +10,41 @@ class Torrent:
     def __init__(self, file_path):
         bc = bencodepy.Bencode( encoding=None,
                                 encoding_fallback=None, 
-                                dict_ordered=False,
-                                dict_ordered_sort=False)
+                                dict_ordered=True,
+                                dict_ordered_sort=True)
         self.decoded_info = bc.read(file_path)
+        #hash the info dict for the tracker
+        info = bc.encode(self.decoded_info[b'info'])
+        self.info_hash = sha1(info).digest()
+        #generate list of files
+        self._generate_file_list()
+    
+    def _generate_file_list(self):
+        """
+        Stores the list of files included in this torrent.
+        """
+        self._files = []
+        if self.multi_file:
+            files_list = self.decoded_info[b'info'][b'files']
+            for file in files_list:
+                #decode from binary
+                path_items = [x.decode('utf-8') for x in file[b'path']]
+
+                #path given as a list of folders and subfolders
+                #combine into one string
+                path = "/".join(path_items)
+
+                curr_file = TorrentFile(
+                    path,
+                    file[b'length']
+                )
+                self._files.append(curr_file)
+        else:
+            file = TorrentFile(
+                self.decoded_info[b'info'][b'name'].decode('utf-8'),
+                self.decoded_info[b'info'][b'length']
+            )
+            self._files.append(file)
     
     @property
     def announce(self) -> str:
@@ -50,29 +83,7 @@ class Torrent:
         """
         List of files in the torrent.
         """
-        files = []
-        if self.multi_file:
-            files_list = self.decoded_info[b'info'][b'files']
-            for file in files_list:
-                #decode from binary
-                path_items = [x.decode('utf-8') for x in file[b'path']]
-
-                #path given as a list of folders and subfolders
-                #combine into one string
-                path = "/".join(path_items)
-
-                curr_file = TorrentFile(
-                    path,
-                    file[b'length']
-                )
-                files.append(curr_file)
-        else:
-            file = TorrentFile(
-                self.decoded_info[b'info'][b'name'].decode('utf-8'),
-                self.decoded_info[b'info'][b'length']
-            )
-            files.append(file)
-        return files
+        return self._files
     
     @property
     def multi_file(self) -> bool:
