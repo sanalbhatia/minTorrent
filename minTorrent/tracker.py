@@ -1,8 +1,8 @@
 import requests
-import torrent
 import random
 import bencodepy
 import socket
+import logging
 from typing import List
 from collections import namedtuple
 from struct import unpack
@@ -121,6 +121,7 @@ class Tracker:
         }
         if first:
             params['event'] = 'started'
+        logging.info('Connecting to tracker at: ' + self.torrent.announce)
         self.response = self._decode(requests.get(self.torrent.announce, params=params).content)
 
         return TrackerResponse(self.response)
@@ -151,14 +152,3 @@ def _decode_port(port):
     """
     # Convert from C style big-endian encoded as unsigned short
     return unpack(">H", port)[0]
-
-if __name__ == "__main__":
-
-    file_path = '../test_files/Haywyre - Panorama_ Discover.torrent'
-    torrent = Torrent(file_path)
-    
-    tracker = Tracker(torrent)
-    response = tracker.connect()
-    #response from tracker
-    print(response.peers)
-
