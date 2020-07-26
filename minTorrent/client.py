@@ -55,6 +55,7 @@ class TorrentClient:
                                      self.piece_manager,
                                      self._on_block_retrieved)
                     for _ in range(MAX_PEER_CONNECTIONS)]
+
         
         #The time we last made an announce call (timestamp)
         previous = None
@@ -73,7 +74,6 @@ class TorrentClient:
             #if first request
             #or default interval has not passed after prev request
             if (not previous) or (previous + interval < current):
-                print("MAKING ANNOUNCE CALL")
                 response = self.tracker.connect(
                     first=False if previous else True,
                     uploaded=self.piece_manager.bytes_uploaded,
@@ -86,8 +86,6 @@ class TorrentClient:
                     self._empty_queue()
                     
                     for peer in response.peers:
-                        print("PEER")
-                        print(peer)
                         self.available_peers.put_nowait(peer)
             else:
                 await asyncio.sleep(5)
@@ -255,7 +253,7 @@ class PieceManager:
             #request size as divisor for the piece length.
             #The final piece however, will most likely have fewer blocks
             #than 'regular' pieces, and that final block might be smaller
-            #then the other blocks.
+            #than the other blocks.
             if index < (total_pieces - 1):
                 blocks = [Block(index, offset * REQUEST_SIZE, REQUEST_SIZE)
                           for offset in range(std_piece_blocks)]
@@ -362,7 +360,7 @@ class PieceManager:
         be fetched again. If the hash succeeds the piece is written to
         disk and the piece is indicated as Have.
         """
-        print('Received block {} for piece {} from peer {}'.format(block_offset, piece_index, peer_id))
+        #print('Received block {} for piece {} from peer {}'.format(block_offset, piece_index, peer_id))
 
         #Remove from pending requests
         for index, request in enumerate(self.pending_blocks):
@@ -409,7 +407,7 @@ class PieceManager:
                               request.block.offset,
                               request.block.piece))
                     #Reset expiration timer
-                    request.added = current
+                    request = PendingRequest(request.block, current)
                     return request.block
         return None
         
